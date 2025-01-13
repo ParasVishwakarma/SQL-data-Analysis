@@ -1,0 +1,225 @@
+
+mysql> CREATE DATABASE SalesAnalysisDB;
+sisDB;
+
+CREATE TABLE sales_data (
+    sale_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    sale_date DATE NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(255) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL
+);
+
+
+INSERT INTO sales_data (product_id, category, sale_date, amount)
+VALUES
+(1, 'Electronics', '2025-01-01', 500.00),
+(2, 'Electronics', '2025-01-02', 300.00),
+(3, 'Furniture', '2025-01-03', 700.00),
+(4, 'Furniture', '2025-01-04', 1000.00),
+(1, 'Electronics', '2025-01-05', 200.00),
+(2, 'Electronics', '2025-01-06', 400.00),
+(3, 'Furniture', '2025-01-07', 800.00),
+(4, 'Furniture', '2025-01-08', 1200.00);
+
+
+
+INSERT INTO products (product_id, product_name, price)
+VALUES
+(1, 'Smartphone', 600.00),
+(2, 'Laptop', 1500.00),
+(3, 'Table', 300.00),
+(4, 'Chair', 150.00);
+
+
+-- Step 1: Create a CTE to calculate total sales per product
+WITH product_sales AS (
+    SELECT
+        sd.product_id,
+        p.product_name,
+        sd.category,
+        SUM(sd.amount) AS total_sales
+    FROM
+        sales_data sd
+    JOIN
+        products p
+    ON
+        sd.product_id = p.product_id
+    GROUP BY
+        sd.product_id, p.product_name, sd.category
+),
+
+-- Step 2: Add window functions for ranking and cumulative totals
+ranked_sales AS (
+    SELECT
+        ps.category,
+        ps.product_id,
+        ps.product_name,
+        ps.total_sales,
+        RANK() OVER (PARTITION BY ps.category ORDER BY ps.total_sales DESC) AS rank_within_category,
+        SUM(ps.total_sales) OVER (PARTITION BY ps.category ORDER BY ps.total_sales DESC) AS cumulative_sales
+    FROM
+        product_sales ps
+),
+
+-- Step 3: Calculate overall metrics for each category
+category_metrics AS (
+    SELECT
+        category,
+        AVG(total_sales) AS avg_sales_per_category,
+        MAX(total_sales) AS max_sales_per_category
+    FROM
+        product_sales
+    GROUP BY
+        category
+)
+
+-- Step 4: Combine all data for final output
+SELECT
+    rs.category,
+    rs.product_id,
+    rs.product_name,
+    rs.total_sales,
+    rs.rank_within_category,
+    rs.cumulative_sales,
+    cm.avg_sales_per_category,
+    cm.max_sales_per_category
+FROM
+    ranked_sales rs
+JOIN
+    category_metrics cm
+ON
+    rs.category = cm.category
+ORDER BY
+    rs.category, rs.rank_within_category;
+Query OK, 1 row affected (0.08 sec)
+
+mysql>
+mysql> USE SalesAnalysisDB;
+Database changed
+mysql>
+mysql> CREATE TABLE sales_data (
+    ->     sale_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     product_id INT NOT NULL,
+    ->     category VARCHAR(100) NOT NULL,
+    ->     sale_date DATE NOT NULL,
+    ->     amount DECIMAL(10, 2) NOT NULL
+    -> );
+Query OK, 0 rows affected (0.22 sec)
+
+mysql>
+mysql> CREATE TABLE products (
+    ->     product_id INT PRIMARY KEY,
+    ->     product_name VARCHAR(255) NOT NULL,
+    ->     price DECIMAL(10, 2) NOT NULL
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql>
+mysql> INSERT INTO sales_data (product_id, category, sale_date, amount)
+    -> VALUES
+    -> (1, 'Electronics', '2025-01-01', 500.00),
+    -> (2, 'Electronics', '2025-01-02', 300.00),
+    -> (3, 'Furniture', '2025-01-03', 700.00),
+    -> (4, 'Furniture', '2025-01-04', 1000.00),
+    -> (1, 'Electronics', '2025-01-05', 200.00),
+    -> (2, 'Electronics', '2025-01-06', 400.00),
+    -> (3, 'Furniture', '2025-01-07', 800.00),
+    -> (4, 'Furniture', '2025-01-08', 1200.00);
+Query OK, 8 rows affected (0.03 sec)
+Records: 8  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql>
+mysql> INSERT INTO products (product_id, product_name, price)
+    -> VALUES
+    -> (1, 'Smartphone', 600.00),
+    -> (2, 'Laptop', 1500.00),
+    -> (3, 'Table', 300.00),
+    -> (4, 'Chair', 150.00);
+Query OK, 4 rows affected (0.02 sec)
+Records: 4  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql> -- Step 1: Create a CTE to calculate total sales per product
+mysql> WITH product_sales AS (
+    ->     SELECT
+    ->         sd.product_id,
+    ->         p.product_name,
+    ->         sd.category,
+    ->         SUM(sd.amount) AS total_sales
+    ->     FROM
+    ->         sales_data sd
+    ->     JOIN
+    ->         products p
+    ->     ON
+    ->         sd.product_id = p.product_id
+    ->     GROUP BY
+    ->         sd.product_id, p.product_name, sd.category
+    -> ),
+    ->
+    -> -- Step 2: Add window functions for ranking and cumulative totals
+    -> ranked_sales AS (
+    ->     SELECT
+    ->         ps.category,
+    ->         ps.product_id,
+    ->         ps.product_name,
+    ->         ps.total_sales,
+    ->         RANK() OVER (PARTITION BY ps.category ORDER BY ps.total_sales DESC) AS rank_within_category,
+    ->         SUM(ps.total_sales) OVER (PARTITION BY ps.category ORDER BY ps.total_sales DESC) AS cumulative_sales
+    ->     FROM
+    ->         product_sales ps
+    -> ),
+    ->
+    -> -- Step 3: Calculate overall metrics for each category
+    -> category_metrics AS (
+    ->     SELECT
+    ->         category,
+    ->         AVG(total_sales) AS avg_sales_per_category,
+    ->         MAX(total_sales) AS max_sales_per_category
+    ->     FROM
+    ->         product_sales
+    ->     GROUP BY
+    ->         category
+    -> )
+    ->
+    -> -- Step 4: Combine all data for final output
+    -> SELECT
+    ->     rs.category,
+    ->     rs.product_id,
+    ->     rs.product_name,
+    ->     rs.total_sales,
+    ->     rs.rank_within_category,
+    ->     rs.cumulative_sales,
+    ->     cm.avg_sales_per_category,
+    ->     cm.max_sales_per_category
+    -> FROM
+    ->     ranked_sales rs
+    -> JOIN
+    ->     category_metrics cm
+    -> ON
+    ->     rs.category = cm.category
+    -> ORDER BY
+    ->     rs.category, rs.rank_within_category;
++-------------+------------+--------------+-------------+----------------------+------------------+------------------------+------------------------+
+| category    | product_id | product_name | total_sales | rank_within_category | cumulative_sales | avg_sales_per_category | max_sales_per_category |
++-------------+------------+--------------+-------------+----------------------+------------------+------------------------+------------------------+
+| Electronics |          1 | Smartphone   |      700.00 |                    1 |          1400.00 |
+  700.000000 |                 700.00 |
+| Electronics |          2 | Laptop       |      700.00 |                    1 |          1400.00 |
+  700.000000 |                 700.00 |
+| Furniture   |          4 | Chair        |     2200.00 |                    1 |          2200.00 |
+ 1850.000000 |                2200.00 |
+| Furniture   |          3 | Table        |     1500.00 |                    2 |          3700.00 |
+ 1850.000000 |                2200.00 |
++-------------+------------+--------------+-------------+----------------------+------------------+------------------------+------------------------+
+4 rows in set (0.02 sec)
